@@ -25,4 +25,15 @@ app.MapGet("/teste", () =>
     };
 });
 
+app.MapGet("/salas", () =>
+{
+    return new Sala []{
+        new Sala { Id = 1, Nome = "Sala de Reunião", Capacidade = 10} ,
+        new Sala{Id = 2, Nome = "Sala de Treinamento", Capacidade = 20} ,
+        new Sala{Id = 3, Nome = "Sala de Conferência", Capacidade = 30 }      
+
+    };
+    
+});
+
 app.Run();
