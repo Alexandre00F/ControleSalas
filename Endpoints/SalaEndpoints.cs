@@ -80,30 +80,37 @@ public static class SalaEndpoints
 
 
         // DELETE /salas/{id}
-        app.MapDelete("/salas/{id}", (int id, AppDbContext db) =>
+app.MapDelete("/salas/{id}", (int id, AppDbContext db) =>
+{
+    // Procura a sala pelo ID.
+    var sala = db.Salas.Find(id);
+
+    // Se a sala não existir, retorna 404.
+    if (sala == null)
+    {
+        return Results.NotFound();
+    }
+
+    // Verifica se existem reservas vinculadas à sala.
+    var possuiReservas = db.Reservas.Any(r => r.SalaId == id);
+
+    // Não permite excluir uma sala que possui reservas.
+    if (possuiReservas)
+    {
+        return Results.Conflict(new
         {
-            var sala = db.Salas.Find(id);
-
-            if (sala == null)
-            {
-                return Results.NotFound();
-            }
-
-            var possuiReservas = db.Reservas.Any(r => r.SalaId == id);
-
-            if (possuiReservas)
-            {
-                return Results.Conflict(new
-                {
-                    erro = "Não é possível excluir a sala porque existem reservas vinculadas a ela."
-                });
-            }
-
-            db.Salas.Remove(sala);
-
-            db.SaveChanges();
-
-            return Results.NoContent();
+            erro = "Não é possível excluir a sala porque existem reservas vinculadas a ela."
         });
+    }
+
+    // Remove a sala.
+    db.Salas.Remove(sala);
+
+    // Salva a alteração no banco.
+    db.SaveChanges();
+
+    // Retorna 204.
+    return Results.NoContent();
+});
     }
 }

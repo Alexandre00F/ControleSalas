@@ -82,32 +82,39 @@ public static class UsuarioEndpoints
 
 
         // DELETE /usuarios/{id}
-        app.MapDelete("/usuarios/{id}", (
-            int id,
-            AppDbContext db) =>
+app.MapDelete("/usuarios/{id}", (
+    int id,
+    AppDbContext db) =>
+{
+    // Procura o usuário pelo ID.
+    var usuario = db.Usuarios.Find(id);
+
+    // Se o usuário não existir, retorna 404.
+    if (usuario == null)
+    {
+        return Results.NotFound();
+    }
+
+    // Verifica se existem reservas vinculadas ao usuário.
+    var possuiReservas = db.Reservas.Any(r => r.UsuarioId == id);
+
+    // Não permite excluir um usuário que possui reservas.
+    if (possuiReservas)
+    {
+        return Results.Conflict(new
         {
-            var usuario = db.Usuarios.Find(id);
-
-            if (usuario == null)
-            {
-                return Results.NotFound();
-            }
-
-            var possuiReservas = db.Reservas.Any(r => r.UsuarioId == id);
-
-            if (possuiReservas)
-            {
-                return Results.Conflict(new
-                {
-                    erro = "Não é possível excluir o usuário porque existem reservas vinculadas a ele."
-                });
-            }
-
-            db.Usuarios.Remove(usuario);
-
-            db.SaveChanges();
-
-            return Results.NoContent();
+            erro = "Não é possível excluir o usuário porque existem reservas vinculadas a ele."
         });
+    }
+
+    // Remove o usuário.
+    db.Usuarios.Remove(usuario);
+
+    // Salva a alteração.
+    db.SaveChanges();
+
+    // Retorna 204.
+    return Results.NoContent();
+});
     }
 }

@@ -23,6 +23,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Permite encontrar automaticamente o index.html.
+app.UseDefaultFiles();
+
+// Permite servir HTML, CSS e outros arquivos estáticos.
+app.UseStaticFiles();
+
 // REGISTRO DOS ENDPOINTS
 
 app.MapSalaEndpoints();
