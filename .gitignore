@@ -2,3 +2,10 @@ bin/
 obj/
 .vs/
 *.db
+bin/
+obj/
+.vs/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal

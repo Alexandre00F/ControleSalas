@@ -12,4 +12,10 @@ public class AppDbContext : DbContext
     public DbSet<Usuario> Usuarios { get; set; }
 
     public DbSet<Reserva> Reservas { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Usuario>().HasIndex(u => u.EmailNormalizado).IsUnique();
+    }
 }

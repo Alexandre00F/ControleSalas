@@ -1,0 +1,581 @@
+@page
+@model IndexModel
+@{
+    var pt = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    var podeReservar = Model.Salas.Count > 0 && Model.Usuarios.Count > 0;
+}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@Model.Titulo | Controle de Salas</title>
+    <link rel="stylesheet" href="~/css/style.css" asp-append-version="true">
+</head>
+<body>
+    <header class="cabecalho">
+        <div class="container barra">
+            <a class="marca" asp-page="/Index">Controle de Salas</a>
+
+            <div class="sessao">
+                <span class="legenda">@User.Identity?.Name</span>
+                <span class="perfil">
+                    @(Model.EhAdmin ? "Administrador" : "Usuário")
+                </span>
+
+                <form method="post" asp-page="/Sair">
+                    <button class="sair" type="submit">Sair</button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="introducao">
+            <span class="etiqueta">GERENCIAMENTO</span>
+            <h1>
+                @(Model.EhAdmin
+                    ? "Gerencie salas e clientes."
+                    : "Encontre seu próximo espaço.")
+            </h1>
+            <p>
+                @(Model.EhAdmin
+                    ? "Cadastre, atualize e acompanhe as reservas do sistema."
+                    : "Consulte as salas disponíveis e faça sua reserva.")
+            </p>
+        </div>
+
+        <nav class="abas" aria-label="Áreas do sistema">
+            <a asp-page="/Index"
+               asp-route-secao="salas"
+               class="@(Model.Secao == "salas" ? "ativa" : "")"
+               aria-current="@(Model.Secao == "salas" ? "page" : null)">
+                @(Model.EhAdmin ? "Salas" : "Salas disponíveis")
+                <span>@Model.Salas.Count</span>
+            </a>
+
+            @if (Model.EhAdmin)
+            {
+                <a asp-page="/Index"
+                   asp-route-secao="usuarios"
+                   class="@(Model.Secao == "usuarios" ? "ativa" : "")"
+                   aria-current="@(Model.Secao == "usuarios" ? "page" : null)">
+                    Clientes <span>@Model.Usuarios.Count</span>
+                </a>
+            }
+
+            <a asp-page="/Index"
+               asp-route-secao="reservas"
+               class="@(Model.Secao == "reservas" ? "ativa" : "")"
+               aria-current="@(Model.Secao == "reservas" ? "page" : null)">
+                @(Model.EhAdmin ? "Reservas" : "Minhas reservas")
+                <span>@Model.Reservas.Count</span>
+            </a>
+        </nav>
+
+        @if (!string.IsNullOrEmpty(Model.Mensagem))
+        {
+            <div class="aviso sucesso" role="status">
+                @Model.Mensagem
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.Erro))
+        {
+            <div class="aviso erro" role="alert">
+                @Model.Erro
+            </div>
+        }
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="aviso erro" role="alert">
+                <strong>Revise os dados abaixo.</strong>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        @if (Model.ConfirmandoExclusao)
+        {
+            <section class="confirmacao painel"
+                     aria-labelledby="titulo-exclusao">
+                <h2 id="titulo-exclusao">Excluir este registro?</h2>
+                <p><strong>@Model.NomeExclusao</strong></p>
+                <p>Após confirmar, o registro será removido do sistema.</p>
+
+                <form method="post"
+                      action="@Url.Page("/Index", "Excluir")"
+                      asp-antiforgery="false">
+                    @Html.AntiForgeryToken()
+
+                    <input type="hidden" name="Secao" value="@Model.Secao">
+                    <input type="hidden" name="Id" value="@Model.Id">
+
+                    <div class="acoes">
+                        <button class="botao perigo" type="submit">
+                            Confirmar exclusão
+                        </button>
+
+                        <a class="botao secundario"
+                           asp-page="/Index"
+                           asp-route-secao="@Model.Secao">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </section>
+        }
+        else
+        {
+            <div class="conteudo @(!Model.EhAdmin && Model.Secao == "salas" ? "somente-lista" : "")">
+                @if (Model.EhAdmin || Model.Secao == "reservas")
+                {
+                    <section class="painel formulario"
+                             aria-labelledby="titulo-formulario">
+                        @if (Model.Secao == "salas")
+                        {
+                            <h2 id="titulo-formulario">
+                                @(Model.Editando ? "Editar sala" : "Nova sala")
+                            </h2>
+                            <p class="apoio">
+                                Informe o nome e a quantidade de lugares.
+                            </p>
+
+                            <form method="post" asp-page-handler="SalvarSala">
+                                <input type="hidden" asp-for="Id">
+
+                                <label asp-for="Sala.Nome">Nome da sala</label>
+                                <input asp-for="Sala.Nome"
+                                       required
+                                       minlength="3"
+                                       placeholder="Ex.: Sala de reunião">
+
+                                <label asp-for="Sala.Capacidade">Capacidade</label>
+                                <input asp-for="Sala.Capacidade"
+                                       type="number"
+                                       required
+                                       min="1"
+                                       max="1000"
+                                       value="@(Model.Editando || !ViewData.ModelState.IsValid ? Model.Sala.Capacidade.ToString() : "")"
+                                       placeholder="Ex.: 15">
+
+                                <div class="acoes">
+                                    <button class="botao" type="submit">
+                                        @(Model.Editando
+                                            ? "Salvar alterações"
+                                            : "Cadastrar sala")
+                                    </button>
+
+                                    @if (Model.Editando)
+                                    {
+                                        <a class="cancelar"
+                                           asp-page="/Index"
+                                           asp-route-secao="salas">
+                                            Cancelar
+                                        </a>
+                                    }
+                                </div>
+                            </form>
+                        }
+                        else if (Model.Secao == "usuarios")
+                        {
+                            <h2 id="titulo-formulario">
+                                @(Model.Editando ? "Editar cliente" : "Novo cliente")
+                            </h2>
+                            <p class="apoio">
+                                Cadastre quem vai utilizar as salas.
+                            </p>
+
+                            <form method="post" asp-page-handler="SalvarUsuario">
+                                <input type="hidden" asp-for="Id">
+
+                                <label asp-for="Usuario.Nome">Nome</label>
+                                <input asp-for="Usuario.Nome"
+                                       required
+                                       minlength="3"
+                                       autocomplete="name"
+                                       placeholder="Nome completo">
+
+                                <label asp-for="Usuario.Email">E-mail</label>
+                                <input asp-for="Usuario.Email"
+                                       type="email"
+                                       required
+                                       autocomplete="email"
+                                       placeholder="nome@exemplo.com">
+
+                                <label asp-for="Usuario.Senha">
+                                    @(Model.Editando
+                                        ? "Nova senha (opcional)"
+                                        : "Senha inicial")
+                                </label>
+                                <input asp-for="Usuario.Senha"
+                                       type="password"
+                                       required="@(!Model.Editando)"
+                                       minlength="8"
+                                       maxlength="128"
+                                       autocomplete="new-password"
+                                       value="">
+
+                                <p class="dica">
+                                    @(Model.Editando
+                                        ? "Deixe vazio para manter a senha atual."
+                                        : "Use pelo menos 8 caracteres. O cliente usará esta senha para entrar.")
+                                </p>
+
+                                <div class="acoes">
+                                    <button class="botao" type="submit">
+                                        @(Model.Editando
+                                            ? "Salvar alterações"
+                                            : "Cadastrar cliente")
+                                    </button>
+
+                                    @if (Model.Editando)
+                                    {
+                                        <a class="cancelar"
+                                           asp-page="/Index"
+                                           asp-route-secao="usuarios">
+                                            Cancelar
+                                        </a>
+                                    }
+                                </div>
+                            </form>
+                        }
+                        else
+                        {
+                            <h2 id="titulo-formulario">
+                                @(Model.Editando ? "Editar reserva" : "Nova reserva")
+                            </h2>
+                            <p class="apoio">
+                                @(Model.EhAdmin
+                                    ? "Escolha a sala, o cliente e o horário."
+                                    : "Escolha uma sala e o horário que você precisa.")
+                            </p>
+
+                            <p class="dica">
+                                <a asp-page="/Index" asp-route-secao="salas">
+                                    Consultar os horários indisponíveis das salas
+                                </a>
+                            </p>
+
+                            @if (!podeReservar)
+                            {
+                                <div class="aviso informacao">
+                                    @(Model.EhAdmin
+                                        ? "Cadastre pelo menos uma sala e um cliente para fazer uma reserva."
+                                        : "Ainda não há salas cadastradas. Aguarde o administrador disponibilizar uma sala.")
+                                </div>
+                            }
+
+                            <form method="post" asp-page-handler="SalvarReserva">
+                                <input type="hidden" asp-for="Id">
+
+                                <fieldset disabled="@(!podeReservar)">
+                                    <legend class="somente-leitor">
+                                        Dados da reserva
+                                    </legend>
+
+                                    <label asp-for="Reserva.SalaId">Sala</label>
+                                    <select asp-for="Reserva.SalaId" required>
+                                        <option value="">Selecione uma sala</option>
+
+                                        @foreach (var sala in Model.Salas)
+                                        {
+                                            <option value="@sala.Id">
+                                                @sala.Nome — @sala.Capacidade lugares
+                                            </option>
+                                        }
+                                    </select>
+
+                                    @if (Model.EhAdmin)
+                                    {
+                                        <label asp-for="Reserva.UsuarioId">
+                                            Cliente
+                                        </label>
+
+                                        <select asp-for="Reserva.UsuarioId" required>
+                                            <option value="">Selecione um cliente</option>
+
+                                            @foreach (var usuario in Model.Usuarios)
+                                            {
+                                                <option value="@usuario.Id">
+                                                    @usuario.Nome
+                                                </option>
+                                            }
+                                        </select>
+                                    }
+                                    else
+                                    {
+                                        <p class="dica">
+                                            Esta reserva ficará vinculada à sua conta.
+                                        </p>
+                                    }
+
+                                    <label asp-for="Reserva.Inicio">Início</label>
+                                    <input asp-for="Reserva.Inicio"
+                                           type="datetime-local"
+                                           asp-format="{0:yyyy-MM-ddTHH:mm}"
+                                           value="@(Model.Reserva.Inicio == default ? "" : Model.Reserva.Inicio.ToString("yyyy-MM-ddTHH:mm"))"
+                                           required>
+
+                                    <label asp-for="Reserva.Fim">Fim</label>
+                                    <input asp-for="Reserva.Fim"
+                                           type="datetime-local"
+                                           asp-format="{0:yyyy-MM-ddTHH:mm}"
+                                           value="@(Model.Reserva.Fim == default ? "" : Model.Reserva.Fim.ToString("yyyy-MM-ddTHH:mm"))"
+                                           required>
+
+                                    <p class="dica">
+                                        O início deve ser anterior ao fim.
+                                        A sala precisa estar livre nesse intervalo.
+                                    </p>
+
+                                    <button class="botao" type="submit">
+                                        @(Model.Editando
+                                            ? "Salvar alterações"
+                                            : "Cadastrar reserva")
+                                    </button>
+                                </fieldset>
+
+                                @if (Model.Editando)
+                                {
+                                    <a class="cancelar"
+                                       asp-page="/Index"
+                                       asp-route-secao="reservas">
+                                        Cancelar
+                                    </a>
+                                }
+                            </form>
+                        }
+                    </section>
+                }
+
+                <section class="listagem" aria-labelledby="titulo-lista">
+                    <div class="titulo-lista">
+                        <h2 id="titulo-lista">
+                            @(Model.Secao == "usuarios"
+                                ? "Clientes cadastrados"
+                                : Model.Secao == "reservas"
+                                    ? (Model.EhAdmin ? "Todas as reservas" : "Minhas reservas")
+                                    : "Salas disponíveis")
+                        </h2>
+
+                        @if (Model.EhAdmin)
+                        {
+                            <span class="legenda">
+                                Atualize ou exclua pela lista
+                            </span>
+                        }
+                    </div>
+
+                    @if (Model.Secao == "salas")
+                    {
+                        <div class="painel" style="margin-bottom: 16px;">
+                            <form method="get" asp-page="/Index">
+                                <input type="hidden" name="secao" value="salas">
+
+                                <label for="dataConsulta">
+                                    Consultar ocupação nesta data
+                                </label>
+                                <input id="dataConsulta"
+                                       name="dataConsulta"
+                                       type="date"
+                                       value="@Model.DataConsulta.ToString("yyyy-MM-dd")"
+                                       required>
+
+                                <div class="acoes">
+                                    <button class="botao" type="submit">
+                                        Consultar horários
+                                    </button>
+                                </div>
+                            </form>
+
+                            <p class="dica">
+                                Abaixo estão os horários indisponíveis em
+                                @Model.DataConsulta.ToString("dd/MM/yyyy", pt).
+                                Fora desses intervalos, você pode solicitar uma reserva.
+                            </p>
+                        </div>
+
+                        @if (Model.Salas.Count == 0)
+                        {
+                            <div class="vazio painel">
+                                <h3>Nenhuma sala por aqui.</h3>
+                                <p>
+                                    @(Model.EhAdmin
+                                        ? "Cadastre a primeira sala no formulário ao lado."
+                                        : "O administrador ainda não disponibilizou salas.")
+                                </p>
+                            </div>
+                        }
+
+                        <div class="cartoes">
+                            @foreach (var sala in Model.Salas)
+                            {
+                                var horarios = Model.HorariosDaSala(sala.Id);
+
+                                <article class="painel cartao">
+                                    <span class="numero">SALA #@sala.Id</span>
+                                    <h3>@sala.Nome</h3>
+                                    <p>@sala.Capacidade lugares</p>
+
+                                    @if (horarios.Count == 0)
+                                    {
+                                        <p class="dica">
+                                            Sem reservas em
+                                            @Model.DataConsulta.ToString("dd/MM/yyyy", pt).
+                                        </p>
+                                    }
+                                    else
+                                    {
+                                        <p class="dica">
+                                            <strong>Horários indisponíveis</strong>
+                                        </p>
+
+                                        @foreach (var horario in horarios)
+                                        {
+                                            <dl class="horarios">
+                                                <dt>Início</dt>
+                                                <dd>
+                                                    @horario.Inicio.ToString("dd/MM/yyyy 'às' HH:mm", pt)
+                                                </dd>
+
+                                                <dt>Fim</dt>
+                                                <dd>
+                                                    @horario.Fim.ToString("dd/MM/yyyy 'às' HH:mm", pt)
+                                                </dd>
+                                            </dl>
+                                        }
+                                    }
+
+                                    @if (Model.EhAdmin)
+                                    {
+                                        <div class="acoes-cartao">
+                                            <a asp-page="/Index"
+                                               asp-route-secao="salas"
+                                               asp-route-editar="@sala.Id"
+                                               aria-label="Editar @sala.Nome">
+                                                Editar
+                                            </a>
+
+                                            <a class="excluir"
+                                               asp-page="/Index"
+                                               asp-route-secao="salas"
+                                               asp-route-excluir="@sala.Id"
+                                               aria-label="Excluir @sala.Nome">
+                                                Excluir
+                                            </a>
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    }
+                    else if (Model.Secao == "usuarios")
+                    {
+                        @if (Model.Usuarios.Count == 0)
+                        {
+                            <div class="vazio painel">
+                                <h3>Nenhum cliente por aqui.</h3>
+                                <p>Cadastre o primeiro responsável pelas reservas.</p>
+                            </div>
+                        }
+
+                        <div class="cartoes">
+                            @foreach (var usuario in Model.Usuarios)
+                            {
+                                <article class="painel cartao">
+                                    <span class="numero">
+                                        CLIENTE #@usuario.Id
+                                    </span>
+                                    <h3>@usuario.Nome</h3>
+                                    <p>@usuario.Email</p>
+
+                                    @if (Model.EhAdmin)
+                                    {
+                                        <div class="acoes-cartao">
+                                            <a asp-page="/Index"
+                                               asp-route-secao="usuarios"
+                                               asp-route-editar="@usuario.Id"
+                                               aria-label="Editar @usuario.Nome">
+                                                Editar
+                                            </a>
+
+                                            <a class="excluir"
+                                               asp-page="/Index"
+                                               asp-route-secao="usuarios"
+                                               asp-route-excluir="@usuario.Id"
+                                               aria-label="Excluir @usuario.Nome">
+                                                Excluir
+                                            </a>
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        @if (Model.Reservas.Count == 0)
+                        {
+                            <div class="vazio painel">
+                                <h3>Nenhuma reserva por aqui.</h3>
+                                <p>Selecione uma sala e um horário para começar.</p>
+                            </div>
+                        }
+
+                        <div class="cartoes">
+                            @foreach (var reserva in Model.Reservas)
+                            {
+                                <article class="painel cartao">
+                                    <span class="numero">
+                                        RESERVA #@reserva.Id
+                                    </span>
+                                    <h3>@reserva.Sala.Nome</h3>
+                                    <p>@reserva.Usuario.Nome</p>
+
+                                    <dl class="horarios">
+                                        <dt>Início</dt>
+                                        <dd>
+                                            @reserva.Inicio.ToString("dd/MM/yyyy 'às' HH:mm", pt)
+                                        </dd>
+
+                                        <dt>Fim</dt>
+                                        <dd>
+                                            @reserva.Fim.ToString("dd/MM/yyyy 'às' HH:mm", pt)
+                                        </dd>
+                                    </dl>
+
+                                    @if (Model.EhAdmin)
+                                    {
+                                        <div class="acoes-cartao">
+                                            <a asp-page="/Index"
+                                               asp-route-secao="reservas"
+                                               asp-route-editar="@reserva.Id"
+                                               aria-label="Editar reserva @reserva.Id">
+                                                Editar
+                                            </a>
+
+                                            <a class="excluir"
+                                               asp-page="/Index"
+                                               asp-route-secao="reservas"
+                                               asp-route-excluir="@reserva.Id"
+                                               aria-label="Excluir reserva @reserva.Id">
+                                                Excluir
+                                            </a>
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+            </div>
+        }
+    </main>
+
+    <footer class="container rodape">
+        Controle de Salas · Salas, pessoas e horários em um só lugar.
+    </footer>
+</body>
+</html>

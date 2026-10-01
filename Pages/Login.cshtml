@@ -1,0 +1,36 @@
+@page
+@model LoginModel
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Entrar | Controle de Salas</title>
+    <link rel="stylesheet" href="~/css/style.css" asp-append-version="true">
+</head>
+<body>
+    <header class="cabecalho"><div class="container barra"><a class="marca" asp-page="/Login">Controle de Salas</a></div></header>
+    <main class="conta painel">
+        <span class="etiqueta">BEM-VINDO</span>
+        <h1>Entre na sua conta.</h1>
+        <p>Seu próximo espaço está aqui.</p>
+        @if (TempData["Mensagem"] is string mensagem)
+        {
+            <div class="aviso sucesso" role="status">@mensagem</div>
+        }
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="aviso erro" role="alert" asp-validation-summary="All"></div>
+        }
+        <form method="post">
+            <input type="hidden" asp-for="ReturnUrl">
+            <label asp-for="Email">E-mail</label>
+            <input asp-for="Email" type="email" required autocomplete="username" placeholder="nome@exemplo.com">
+            <label asp-for="Senha">Senha</label>
+            <input asp-for="Senha" type="password" required maxlength="128" autocomplete="current-password" value="">
+            <div class="acoes"><button class="botao" type="submit">Entrar</button></div>
+        </form>
+        <p class="link-conta">Ainda não tem uma conta? <a asp-page="/Cadastro">Cadastre-se</a></p>
+    </main>
+</body>
+</html>
